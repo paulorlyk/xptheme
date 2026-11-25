@@ -1,10 +1,14 @@
 #!/bin/bash
 # Build the XP-Luna theme files into build/XP-Luna-for-Mint, over a base application theme.
 #
-# usage: build.sh --msstyles PATH [--base NAME|DIR]   (or set $XP_MSSTYLES, $XP_BASE)
+# usage: build.sh --msstyles PATH [--base NAME|DIR] [--no-borders]
+#                 (or set $XP_MSSTYLES, $XP_BASE, XP_NO_BORDERS=1)
 #   --base: the theme XP-Luna inherits the rest of GTK's styling from, by name (found in
 #   ~/.local/share/themes, ~/.themes, /usr/share/themes) or its folder. Default Adwaita, GTK's
 #   own theme (the one Mojave is built from).
+#   --no-borders: windows get XP's caption only, no side or bottom frame. Electron apps
+#   (Slack) hidden to the tray and shown again otherwise come back one border further
+#   left every time (a Muffin bug, see tools/gen_css.py).
 #   PATH is a Windows XP luna.msstyles (C:\WINDOWS\Resources\Themes\Luna).
 #   Every bitmap and colour of the theme is drawn from it. The file is only read
 #   from PATH; the resulting theme contains Microsoft's artwork: for personal
@@ -14,10 +18,12 @@ cd "$(dirname "$0")"
 
 MSSTYLES="${XP_MSSTYLES:-}"
 BASE="${XP_BASE:-Adwaita}"
+NO_BORDERS="${XP_NO_BORDERS:-}"
 while [ $# -gt 0 ]; do
   case "$1" in
     --msstyles) MSSTYLES="$2"; shift 2 ;;
     --base) BASE="$2"; shift 2 ;;
+    --no-borders) NO_BORDERS=1; shift ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
 done
@@ -37,7 +43,8 @@ PY="$BUILD/venv/bin/python -I"
 rm -rf "$OUT"
 mkdir -p "$OUT/gtk-3.0/assets"
 $PY tools/gen_assets.py "$OUT/gtk-3.0/assets" "${MS[@]}"
-$PY tools/gen_css.py "$OUT/gtk-3.0/assets" "$OUT/gtk-3.0/luna-decorations.css" "${MS[@]}"
+$PY tools/gen_css.py "$OUT/gtk-3.0/assets" "$OUT/gtk-3.0/luna-decorations.css" "${MS[@]}" \
+  ${NO_BORDERS:+--no-borders}
 # Application widgets: one generator per luna-*.css, listed in cascade order (later
 # files win at equal specificity, e.g. menu check marks over checkboxes). luna.css
 # imports them in this order.
@@ -51,6 +58,9 @@ done
 } > "$OUT/gtk-3.0/luna.css"
 # Stretched strips are inlined into the CSS as gradients; the bitmaps were only their source.
 rm -f "$OUT"/gtk-3.0/assets/{,inactive-}{title-tile,max-title-tile,frame-bottom,frame-left,frame-right}{,@2,@3}.png
+[ -z "$NO_BORDERS" ] || rm -f "$OUT"/gtk-3.0/assets/{,inactive-}frame-bottom-{left,right}{,@2,@3}.png
+# the frame tests check for the side and bottom frames, or for their absence
+if [ -n "$NO_BORDERS" ]; then echo none; else echo xp; fi > "$BUILD/borders"
 # the tests use the same file as their reference
 realpath "$MSSTYLES" > "$BUILD/msstyles.path"
 

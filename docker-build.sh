@@ -1,7 +1,8 @@
 #!/bin/bash
 # Build XP-Luna-for-Mint with Docker (build.Dockerfile) into dist/.
 #
-# usage: docker-build.sh --msstyles PATH [--base NAME]   (or set $XP_MSSTYLES, $XP_BASE)
+# usage: docker-build.sh --msstyles PATH [--base NAME] [--no-borders]
+#                        (or set $XP_MSSTYLES, $XP_BASE, XP_NO_BORDERS=1; see build.sh)
 #   PATH is your Windows XP luna.msstyles. It is bind-mounted into the build step only,
 #   never copied into a layer. --base takes a theme name only: the build has just GTK's
 #   built-in themes (Adwaita, Adwaita-dark, HighContrast, HighContrastInverse).
@@ -14,14 +15,16 @@ cd "$(dirname "$0")"
 
 MSSTYLES="${XP_MSSTYLES:-}"
 BASE="${XP_BASE:-Adwaita}"
+NO_BORDERS="${XP_NO_BORDERS:-}"
 while [ $# -gt 0 ]; do
   case "$1" in
     --msstyles) MSSTYLES="$2"; shift 2 ;;
     --base) BASE="$2"; shift 2 ;;
+    --no-borders) NO_BORDERS=1; shift ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
 done
-[ -n "$MSSTYLES" ] || { echo "usage: docker-build.sh --msstyles /path/to/luna.msstyles [--base NAME]" >&2; exit 2; }
+[ -n "$MSSTYLES" ] || { echo "usage: docker-build.sh --msstyles /path/to/luna.msstyles [--base NAME] [--no-borders]" >&2; exit 2; }
 [ -f "$MSSTYLES" ] || { echo "no such file: $MSSTYLES" >&2; exit 2; }
 
 THEME=XP-Luna-for-Mint
@@ -39,6 +42,7 @@ DOCKER_BUILDKIT=1 docker build \
   -f build.Dockerfile \
   --build-context "msstyles=$CTX" \
   --build-arg "XP_BASE=$BASE" \
+  --build-arg "XP_NO_BORDERS=$NO_BORDERS" \
   --output "type=local,dest=$DIST" \
   .
 echo "built $DIST/$THEME"

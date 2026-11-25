@@ -31,8 +31,9 @@ COPY xp-luna-for-mint/build.sh ./
 COPY xp-luna-for-mint/tools/ tools/
 
 ARG XP_BASE=Adwaita
+ARG XP_NO_BORDERS=
 RUN --mount=type=bind,from=msstyles,target=/msstyles \
-    XP_MSSTYLES=/msstyles/luna.msstyles XP_BASE="$XP_BASE" ./build.sh
+    XP_MSSTYLES=/msstyles/luna.msstyles XP_BASE="$XP_BASE" XP_NO_BORDERS="$XP_NO_BORDERS" ./build.sh
 
 FROM scratch AS export
 COPY --from=build /theme/build/XP-Luna-for-Mint /XP-Luna-for-Mint

@@ -4,7 +4,9 @@ drawn from luna.msstyles (test/xpref.py) at the same size.
 
 The focused test window's frame is at (40, 40) and is 260px wide. Title text is
 excluded: muffin always centres it, XP left-aligns it (and the reference has
-none). Exits non-zero if a region is off by more than its tolerance.
+none). A --no-borders build (build/borders says "none") has no side or bottom
+frame: its window is the client's 254px wide and the client meets the caption's
+edges. Exits non-zero if a region is off by more than its tolerance.
 
 usage: compare.py <test-dir>
 """
@@ -16,15 +18,21 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import xpref  # noqa: E402
 
-OX, OY, W = 40, 40, 260
-BTN_XS = {"minimize": 188, "maximize": 211, "close": 234}
+_borders = Path(__file__).resolve().parent.parent / "build" / "borders"
+BORDERS = not _borders.exists() or _borders.read_text().strip() != "none"
+OX, OY, W = 40, 40, 260 if BORDERS else 254
+BTN_XS = {"minimize": W - 72, "maximize": W - 49, "close": W - 26}
+CLIENT = (0xEC, 0xE9, 0xD8)   # xmessage -bg in screenshot.sh
 
 test = Path(sys.argv[1])
 th = xpref.theme()
 shot = Image.open(test / "windows.png").convert("RGB").load()
 hover = Image.open(test / "hover.png").convert("RGB").load()
-bottom_row = xpref.window(th, W, 40).getpixel((W // 2, 39))[:3]
-H = next(y for y in range(60, 360) if shot[OX + W // 2, OY + y] == bottom_row) + 1
+if BORDERS:
+    bottom_row = xpref.window(th, W, 40).getpixel((W // 2, 39))[:3]
+    H = next(y for y in range(60, 360) if shot[OX + W // 2, OY + y] == bottom_row) + 1
+else:   # the client's last row, at its right edge (clear of xmessage's text box and button)
+    H = next(y for y in range(60, 360) if shot[OX + W - 2, OY + y] != CLIENT)
 ref = xpref.window(th, W, H).load()
 ref_hover = xpref.window(th, W, H, hover="close").load()
 
@@ -56,11 +64,24 @@ results = [
     region("caption (minus title text)", range(W), range(29), 0,
            skip=lambda x, y: (4 <= x < text_x1 and 3 <= y < 27)),
     *[region(f"{fn} button", range(x, x + 21), range(5, 26), 0) for fn, x in BTN_XS.items()],
-    region("left frame", range(0, 3), range(29, H - 3), 0),
-    region("right frame", range(W - 3, W), range(29, H - 3), 0),
-    region("bottom frame", range(W), range(H - 3, H), 0),
-    region("close button :hover", range(234, 255), range(5, 26), 0, img=hover, r_img=ref_hover),
+    region("close button :hover", range(BTN_XS["close"], BTN_XS["close"] + 21), range(5, 26), 0,
+           img=hover, r_img=ref_hover),
 ]
+if BORDERS:
+    results += [
+        region("left frame", range(0, 3), range(29, H - 3), 0),
+        region("right frame", range(W - 3, W), range(29, H - 3), 0),
+        region("bottom frame", range(W), range(H - 3, H), 0),
+    ]
+else:
+    # no frame: the client reaches the window's sides and bottom
+    client = Image.new("RGBA", (W, H), CLIENT + (255,)).load()
+    results += [
+        region("no left frame", range(0, 3), range(29, H), 0, r_img=client),
+        region("no right frame", range(W - 3, W), range(29, H), 0, r_img=client),
+        # (xmessage's "okay" button reaches the bottom rows at the left)
+        region("no bottom frame", range(60, W), range(H - 3, H), 0, r_img=client),
+    ]
 # --- rounded corners: the compositor's drop shadow must reach into the corner
 # notches (XP's transparent corner pixels). Muffin only draws it there when the
 # headerbar's border-radius tells it the corners are rounded; otherwise the

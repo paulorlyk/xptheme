@@ -34,7 +34,14 @@ Gradients are resolution independent and stay opaque.
 The side frames are XP's 31-row bitmaps stretched over the window's height,
 one hard-stop gradient per column (nearest sampling, as uxtheme stretches them).
 
-usage: gen_css.py <assets-dir> <out-file> --msstyles PATH
+With --no-borders the window has only XP's caption: no side or bottom frame, so
+Muffin's visible side and bottom borders are 0. Electron apps (Slack) hidden to the
+tray come back one visible border to the left of where they were, every time: they
+map with Static gravity and Muffin, unmapping them, puts the client where the frame's
+visible corner was (frame.c, meta_window_destroy_frame). With no side borders they
+only drift upward, and that stops at the top of the work area.
+
+usage: gen_css.py <assets-dir> <out-file> --msstyles PATH [--no-borders]
 """
 import sys
 from pathlib import Path
@@ -96,7 +103,7 @@ def bottom_frame(pfx, assets):
     return imgs, size, pos
 
 
-def css(assets, th):
+def css(assets, th, borders=True):
     TITLE_ACTIVE = th.sys("CaptionText")
     TITLE_INACTIVE = th.sys("InactiveCaptionText")
     TITLE_SHADOW = msstyles.hexc(th.color("window", key="TextShadowColor"))
@@ -140,9 +147,11 @@ def css(assets, th):
         limg, lsize, lpos = side_frame(assets / f"{pfx}frame-left.png", False)
         rimg, rsize, rpos = side_frame(assets / f"{pfx}frame-right.png", True)
         bimg, bsize, bpos = bottom_frame(pfx, assets)
+        if not borders:
+            limg = lsize = lpos = rimg = rsize = rpos = bimg = bsize = bpos = []
         out.append(rule(sel,
             margin="0", border="none", border_radius="0", box_shadow="none", outline="none",
-            padding="0 3px 3px 3px",
+            padding="0 3px 3px 3px" if borders else "0",
             background_color="transparent",
             background_image=", ".join(cimg + bimg + limg + rimg),
             background_repeat="no-repeat",
@@ -160,14 +169,16 @@ def css(assets, th):
     for sel in (BAR, f"{BAR}:backdrop"):
         out.append(rule(sel,
             # 5px side borders + padding position the buttons (Muffin layout rules
-            # in the module docstring); they are transparent and paint nothing
+            # in the module docstring); they are transparent and paint nothing.
+            # Without the 3px side frames they take its place (8px), and with no
+            # bottom frame to skew the centring the padding is the maximised one.
             margin="0", box_shadow="none", outline="none", border_radius=f"{CORNER_R}px",
-            border_style="solid", border_color="transparent", border_width="0 5px",
-            min_height="0", padding="6px 0 2px 0",
+            border_style="solid", border_color="transparent", border_width="0 5px" if borders else "0 8px",
+            min_height="0", padding="6px 0 2px 0" if borders else "5px 0 3px 0",
             background_color="transparent", background_image="none"))
         # maximised: buttons 2px from the top; no frame, so no bottom-frame skew
         out.append(rule(sel.replace(f"{W} ", f"{W}.maximized ", 1),
-            padding="2px 0 3px 0", border_radius="0"))
+            padding="2px 0 3px 0", border_radius="0", border_width="0 5px"))
 
     out.append(rule(f"{BAR} label.title",
         color=TITLE_ACTIVE, text_shadow=f"1px 1px {TITLE_SHADOW}",
@@ -207,5 +218,7 @@ def css(assets, th):
 
 if __name__ == "__main__":
     args, theme = msstyles.from_argv(sys.argv[1:])
+    borders = "--no-borders" not in args
+    args = [x for x in args if x != "--no-borders"]
     with open(args[1], "w") as fh:
-        fh.write(css(Path(args[0]), theme))
+        fh.write(css(Path(args[0]), theme, borders))
