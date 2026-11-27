@@ -19,6 +19,7 @@ from pathlib import Path
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # python -I omits the script dir
+sys.path.insert(1, str(Path(__file__).resolve().parents[2] / "shared/tools"))   # ninegrid, gtkcss
 import msstyles  # noqa: E402
 from lunacss import BOOST, ms_layers, rule, run, save, scaled, sels  # noqa: E402
 
@@ -27,7 +28,7 @@ def flat_rules(th, assets):
     """Flat buttons (GTK's .flat: every tool button, and borderless icon buttons such as
     tab close buttons and Nemo's path bar) as XP's Toolbar.Button, nine-grid stretched.
     Its states: 1 normal and 4 disabled (both empty), 2 hot, 3 pressed, 5 checked,
-    6 hot + checked. Pressed wins over checked, disabled over everything.
+    6 hot + checked. Pressed wins over checked (a real XP's Folders button held down), disabled over everything.
 
     A GtkMenuToolButton (a flat button and a flat .popup arrow button side by side in
     its toolbutton's box) is XP's split button: Toolbar.SplitButton and, 11px wide,

@@ -15,11 +15,15 @@ from pathlib import Path
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # python -I omits the script dir
+sys.path.insert(1, str(Path(__file__).resolve().parents[2] / "shared/tools"))   # ninegrid, gtkcss
 import msstyles  # noqa: E402
 from lunacss import BOOST, ms_layers, rule, run, sides  # noqa: E402
 
 OPP = {"top": "bottom", "bottom": "top", "left": "right", "right": "left"}
 LINE = {"top": "0 -1px", "bottom": "0 1px", "left": "-1px 0", "right": "1px 0"}
+
+
+ACTION_PAD = (2, 3)   # a tab strip's action buttons: gen_toolbars' flat button padding
 
 
 def turned(img, margins, side):
@@ -88,7 +92,8 @@ def tab_rules(th, assets):
             border="1px solid transparent", **{f"border_{inner}_width": "0"}, border_radius="0",
             background_color="transparent", box_shadow="none", outline_offset="-4px", color="#000",
             min_height="0", min_width="0",
-            padding=("1px 10px" if horizontal else "4px 6px"),   # XP: ~20px tabs, 22px selected
+            padding=("2px 10px" if horizontal else "4px 6px"),   # a real XP (Display Properties): with
+            # Tahoma 8pt (13px lines) a tab is 18px from its top to the page's line, the selected one 20px
             # unselected tabs: 2px back from the page's far edge, 1px short of the line
             margin=sides(**{side: "2px", inner: "1px",
                             **({"left": "0", "right": "1px"} if horizontal else {"top": "0", "bottom": "1px"})}),
@@ -101,6 +106,12 @@ def tab_rules(th, assets):
         # others like push buttons.
         out.append(rule(", ".join(f"{hdr} button{BOOST}{p}" for p in ("", ":hover", ":active", ":checked", ":backdrop")),
             min_height="16px", min_width="16px", padding="0", margin="0"))
+        # ... but the action widgets beside the tabs keep the toolbar buttons' padding: with none,
+        # the hover and pressed look lay under the icon's own edge (gnome-terminal's "new tab"
+        # icon is a framed +) and never showed
+        out.append(rule(", ".join(f"{hdr} > {inside}button{BOOST}{p}" for inside in ("", ":not(tabs) ")
+                                  for p in ("", ":hover", ":active", ":checked", ":backdrop")),
+            padding=f"{ACTION_PAD[0]}px {ACTION_PAD[1]}px"))
         # selected: 2px taller (no outer margin), covers the header line, 2px wider on both sides
         out.append(rule(f"{tab}:checked, {tab}:checked:hover, {tab}:checked:backdrop",
             margin=sides(**{side: "0", inner: "0",

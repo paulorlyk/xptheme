@@ -1,0 +1,39 @@
+; SYNTHETIC test scheme for xp-classic-for-mint's tests: NOT Windows XP's colours.
+; Every colour is different, so a generator that picks the wrong one fails a test.
+; Build a real theme from XP's own Windows Classic.theme.
+
+[Control Panel\Colors]
+Scrollbar=17 91 203
+Background=70 120 18
+ActiveTitle=123 149 89
+InactiveTitle=176 178 160
+Menu=229 207 231
+Window=26 236 46
+WindowFrame=79 9 117
+MenuText=132 38 188
+WindowText=185 67 3
+TitleText=238 96 74
+ActiveBorder=35 125 145
+InactiveBorder=88 154 216
+AppWorkspace=141 183 31
+Hilight=194 212 102
+HilightText=247 241 173
+ButtonFace=44 14 244
+ButtonShadow=97 43 59
+GrayText=150 72 130
+ButtonText=203 101 201
+InactiveTitleText=0 130 16
+ButtonHilight=53 159 87
+ButtonDkShadow=106 188 158
+ButtonLight=159 217 229
+InfoText=212 246 44
+InfoWindow=9 19 115
+ButtonAlternateFace=62 48 186
+HotTrackingColor=115 77 1
+GradientActiveTitle=168 106 72
+GradientInactiveTitle=221 135 143
+MenuHilight=18 164 214
+MenuBar=71 193 29
+
+[Metrics]
+NonclientMetrics=244 1 0 0 3 0 0 0 15 0 0 0 15 0 0 0 17 0 0 0 20 0 0 0 244 255 255 255 0 0 0 0 0 0 0 0 0 0 0 0 188 2 0 0 0 0 0 0 0 0 0 0 84 0 101 0 115 0 116 0 32 0 67 0 97 0 112 0 116 0 105 0 111 0 110 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 13 0 0 0 13 0 0 0 246 255 255 255 0 0 0 0 0 0 0 0 0 0 0 0 188 2 0 0 0 0 0 0 0 0 0 0 84 0 101 0 115 0 116 0 32 0 83 0 109 0 97 0 108 0 108 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 17 0 0 0 18 0 0 0 245 255 255 255 0 0 0 0 0 0 0 0 0 0 0 0 144 1 0 0 0 0 0 0 0 0 0 0 84 0 101 0 115 0 116 0 32 0 77 0 101 0 110 0 117 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 245 255 255 255 0 0 0 0 0 0 0 0 0 0 0 0 144 1 0 0 0 0 0 0 0 0 0 0 84 0 101 0 115 0 116 0 32 0 83 0 116 0 97 0 116 0 117 0 115 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 245 255 255 255 0 0 0 0 0 0 0 0 0 0 0 0 144 1 0 0 0 0 0 0 0 0 0 0 84 0 101 0 115 0 116 0 32 0 77 0 101 0 115 0 115 0 97 0 103 0 101 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0

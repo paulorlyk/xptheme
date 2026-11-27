@@ -7,6 +7,8 @@ theme's CSS provider and calls gtk_render_background in the same order and
 geometry as meta_frame_layout_draw_with_style() (muffin src/ui/theme.c). Output
 is an ARGB PNG, so any unintended transparency shows up in the alpha channel.
 
+Shared by the themes' test/hidpi.sh (through ../shared/test/hidpi.sh).
+
 usage: render_frame.py <theme-dir> <scale> <out.png> [--backdrop] [--maximized]
 """
 import sys
@@ -17,6 +19,9 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gio, Gtk  # noqa: E402
 import os  # noqa: E402
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tools"))
+import muffin  # noqa: E402  (Muffin's device-pixel layout, standard library only)
 
 theme_dir, scale, out = sys.argv[1], int(sys.argv[2]), sys.argv[3]
 backdrop = "--backdrop" in sys.argv
@@ -69,7 +74,10 @@ bh = max(16, button.get_property("min-height", button.get_state()))
 m = button.get_margin(button.get_state())
 
 W, CLIENT_H = 260, 60
-top = ft + max(bh, 16) + tt + tbb                      # meta_frame_layout_get_borders
+# right-aligned minimize, maximize, close exactly like meta_frame_layout_calc_geometry: in device
+# pixels, the decoration's padding unscaled, then divided by the scale to draw (shared/tools/muffin.py)
+rects, top = muffin.button_rects(W, (fl, fr, ft, fb), (tl, tr, tt, tbb), (bw, bh),
+                                 (m.left, m.right, m.top, m.bottom), scale)
 H = top + CLIENT_H + fb
 
 surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, W * scale, H * scale)
@@ -81,18 +89,10 @@ Gtk.render_frame(frame, cr, 0, 0, W, H)
 Gtk.render_background(bar, cr, 0, 0, W, top)
 Gtk.render_frame(bar, cr, 0, 0, W, top)
 
-# right-aligned minimize, maximize, close exactly like meta_frame_layout_calc_geometry
-content_top = ft + tt
-content_h = top - content_top - (fb + tbb)
-by = content_top + int((content_h - bh) / 2)          # C integer division truncates
-x = W - (fr + tr)
-for cls in ("close", "maximize", "minimize"):
-    x -= m.right
-    bx = x - bw
+for cls, (bx, by, w, h) in zip(("close", "maximize", "minimize"), rects):
     button.add_class(cls)
-    Gtk.render_background(button, cr, bx, by, bw, bh)
+    Gtk.render_background(button, cr, bx, by, w, h)
     button.remove_class(cls)
-    x = bx - m.left - 6
 
 # client area (opaque) so only frame transparency remains
 cr.set_source_rgb(0.925, 0.914, 0.847)

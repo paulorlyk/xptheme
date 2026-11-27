@@ -7,7 +7,7 @@ Windows are XP's window colour (SysMetrics Btnface), not the base theme's. Text 
 in active and inactive windows alike (the base theme greys a backdrop
 window's text); disabled labels are SysMetrics GrayText; selected text is Highlight /
 HighlightText, as in text fields (gen_fields). Links are the blue of Explorer's task pane links
-(ExplorerBar.NormalGroupBackground TextColor), visited or not.
+(ExplorerBar.NormalGroupHead TextColor, measured on a real XP), visited or not.
 
 XP's month calendar (comctl32's MonthCal) has no part in luna.msstyles: it draws in system
 colours, the defaults of its MCSC_* colours. The window's white with black text; the title
@@ -23,6 +23,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # python -I omits the script dir
+sys.path.insert(1, str(Path(__file__).resolve().parents[2] / "shared/tools"))   # ninegrid, gtkcss
 import msstyles  # noqa: E402
 from lunacss import BOOST, rule, run, sels  # noqa: E402
 
@@ -34,7 +35,9 @@ def label_rules(th, assets):
     (label > link, :link or :visited, :hover under the pointer) and its selection with
     label > selection."""
     gray = th.sys("GrayText")
-    link = msstyles.hexc(th.color("explorerbar", "normalgroupbackground", None, "TextColor"))
+    # a real XP's task pane links are NormalGroupHead's colour, not NormalGroupBackground's (38 92 192).
+    # Hovered, they turn a lighter blue that is Explorer's own, not in luna.msstyles: not drawn
+    link = msstyles.hexc(th.color("explorerbar", "normalgrouphead", None, "TextColor"))
     # dialogs are their own nodes (dialog, messagedialog), not window: a file chooser or message
     # dialog otherwise keeps the base theme's colour
     wins = [f"{w}.background{BOOST}" for w in ("window", "dialog", "messagedialog")]

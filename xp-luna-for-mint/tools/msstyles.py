@@ -226,12 +226,23 @@ class Theme:
 
     @staticmethod
     def _stretch(src, w, h, margins, tile=False, border_only=False):
-        """uxtheme's nine-grid: corners copied, edges and centre stretched (nearest) or tiled."""
+        """uxtheme's nine-grid: corners copied, edges and centre stretched (nearest) or tiled.
+
+        A target smaller than two margins squeezes them: each gets its share of the target (the
+        first rounded down), the middle none, and its lines are sampled at round(i * margin /
+        share), halves up. Measured on a real XP's 13px progress bar: Chunk's 12 rows (margins
+        6 and 5) drawn into 7 are rows 0, 2, 4 and 7, 8, 10, 11."""
         l, r, t, b = margins
         out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
         sw, sh = src.size
-        xs = [(0, l, 0, l), (l, sw - r, l, w - r), (sw - r, sw, w - r, w)]
-        ys = [(0, t, 0, t), (t, sh - b, t, h - b), (sh - b, sh, h - b, h)]
+
+        def spans(m0, m1, s_len, d_len):
+            if m0 + m1 <= d_len:
+                return [(0, m0, 0, m0), (m0, s_len - m1, m0, d_len - m1), (s_len - m1, s_len, d_len - m1, d_len)]
+            a = d_len * m0 // (m0 + m1)
+            return [(0, m0, 0, a), (m0, m0, a, a), (s_len - m1, s_len, a, d_len)]
+        xs, ys = spans(l, r, sw, w), spans(t, b, sh, h)
+        squeezed_x, squeezed_y = l + r > w, t + b > h
         for iy, (sy0, sy1, dy0, dy1) in enumerate(ys):
             for ix, (sx0, sx1, dx0, dx1) in enumerate(xs):
                 if border_only and ix == 1 and iy == 1:
@@ -239,6 +250,23 @@ class Theme:
                 if sx1 <= sx0 or sy1 <= sy0 or dx1 <= dx0 or dy1 <= dy0:
                     continue
                 piece = src.crop((sx0, sy0, sx1, sy1))
+                if (squeezed_x and ix != 1) or (squeezed_y and iy != 1):
+                    pw, ph = dx1 - dx0, dy1 - dy0
+                    pick = lambda i, s_n, d_n: min(s_n - 1, (2 * i * s_n + d_n) // (2 * d_n))  # noqa: E731
+                    cols = [pick(i, piece.width, pw) if (squeezed_x and ix != 1) else i % piece.width for i in range(pw)]
+                    rows = [pick(i, piece.height, ph) if (squeezed_y and iy != 1) else i % piece.height for i in range(ph)]
+                    if not tile:   # the unsqueezed direction stretches, as PIL's NEAREST below
+                        if not (squeezed_x and ix != 1):
+                            cols = [(2 * i + 1) * piece.width // (2 * pw) for i in range(pw)]
+                        if not (squeezed_y and iy != 1):
+                            rows = [(2 * i + 1) * piece.height // (2 * ph) for i in range(ph)]
+                    sq = Image.new("RGBA", (pw, ph))
+                    pp, sp = piece.load(), sq.load()
+                    for yy, ry in enumerate(rows):
+                        for xx, rx in enumerate(cols):
+                            sp[xx, yy] = pp[rx, ry]
+                    out.paste(sq, (dx0, dy0))
+                    continue
                 if tile:
                     tiled = Image.new("RGBA", (dx1 - dx0, dy1 - dy0))
                     for ty in range(0, dy1 - dy0, piece.height):

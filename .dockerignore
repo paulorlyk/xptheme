@@ -1,7 +1,10 @@
-# The build context is the repo root, which also holds _tmp (luna.msstyles copies) and
-# session data: send only what build.Dockerfile copies.
+# The build context is the repo root, which also holds _tmp (luna.msstyles and Windows
+# Classic.theme copies) and session data: send only what build.Dockerfile copies.
 *
 !xp-luna-for-mint/build.sh
 !xp-luna-for-mint/tools/
+!xp-classic-for-mint/build.sh
+!xp-classic-for-mint/tools/
+!shared/tools/
 **/__pycache__
 **/*.pyc

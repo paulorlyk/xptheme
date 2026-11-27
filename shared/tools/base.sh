@@ -1,4 +1,4 @@
-# Resolve a base GTK 3 theme for XP-Luna to import (sourced by build.sh).
+# Resolve a base GTK 3 theme for an XP theme to import (sourced by xp-*-for-mint/build.sh).
 #
 # resolve_base NAME|DIR sets:
 #   BASE_NAME  the theme's name
@@ -9,7 +9,7 @@
 # so they are imported from GTK's resources. A theme that keeps its CSS in a gtk.gresource
 # (Mojave: gtk.css only imports resource:///org/gnome/theme/gtk.css) only works if that
 # bundle is registered: GTK registers the gtk-3.0/gtk.gresource of the theme it loads by
-# name, so XP-Luna ships a copy of the base's (install_base_gresource).
+# name, so the XP theme ships a copy of the base's (install_base_gresource).
 # Unknown names fall back to Adwaita, with a warning; resolve_base returns 1 then.
 
 find_theme_dir() {
@@ -41,14 +41,16 @@ resolve_base() {
   return 0
 }
 
-# write_gtk_css GTK3DIR: XP-Luna's gtk.css over the resolved base, with the base's gtk.gresource
+# write_gtk_css GTK3DIR TITLE CSS...: gtk.css importing the resolved base, then each CSS file
+# (relative to GTK3DIR), with the base's gtk.gresource next to it
 write_gtk_css() {
-  rm -f "$1/gtk.gresource"
-  [ -n "$BASE_GRES" ] && cp "$BASE_GRES" "$1/gtk.gresource"
+  local dir="$1" title="$2" f
+  shift 2
+  rm -f "$dir/gtk.gresource"
+  [ -n "$BASE_GRES" ] && cp "$BASE_GRES" "$dir/gtk.gresource"
   {
-    echo "/* $BASE_NAME (the base theme) + XP Luna. */"
+    echo "/* $BASE_NAME (the base theme) + $title. */"
     echo "@import url(\"$BASE_CSS\");"
-    echo '@import url("luna-decorations.css");'
-    echo '@import url("luna.css");'
-  } > "$1/gtk.css"
+    for f in "$@"; do echo "@import url(\"$f\");"; done
+  } > "$dir/gtk.css"
 }

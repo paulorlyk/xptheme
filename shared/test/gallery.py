@@ -11,14 +11,15 @@ forced from outside (tabs, toolbars, frames, panes, info bars, header bars,
 calendars, ...) follow in captioned sections. Controls the theme doesn't style
 yet show the base theme, which makes them easy to spot.
 
-  --theme DIR        load DIR/gtk-3.0/gtk.css (e.g. build/XP-Luna-for-Mint) on top of the
-                     current GTK theme, without installing it
+  --theme DIR        load DIR/gtk-3.0/gtk.css (a built theme: xp-luna-for-mint/build/XP-Luna-for-Mint,
+                     xp-classic-for-mint/build/XP-Classic-for-Mint) on top of the current GTK
+                     theme, without installing it
   --screenshot FILE  render once, save a PNG and exit (works under xvfb-run)
 
-Examples:
-  test/gallery.py --theme build/XP-Luna-for-Mint
-  GDK_SCALE=2 test/gallery.py --theme build/XP-Luna-for-Mint
-  xvfb-run -a test/gallery.py --theme build/XP-Luna-for-Mint --screenshot build/gallery.png
+Shared by both themes. Examples, from a theme's folder:
+  ../shared/test/gallery.py --theme build/XP-Luna-for-Mint
+  GDK_SCALE=2 ../shared/test/gallery.py --theme build/XP-Classic-for-Mint
+  xvfb-run -a ../shared/test/gallery.py --theme build/XP-Luna-for-Mint --screenshot build/gallery.png
 """
 import argparse
 import os
@@ -49,7 +50,7 @@ STATES = [  # column title, flags to force (None = insensitive)
 if args.theme:
     css = os.path.join(args.theme, "gtk-3.0", "gtk.css")
     if not os.path.exists(css):
-        sys.exit(f"no theme at {css}; build it first: ./build.sh --msstyles PATH")
+        sys.exit(f"no theme at {css}; build it first (the theme's build.sh)")
     provider = Gtk.CssProvider()
     gres = os.path.join(args.theme, "gtk-3.0", "gtk.gresource")
     if os.path.exists(gres):   # the base theme's CSS bundle (Mojave), as GTK registers it
@@ -822,7 +823,7 @@ def main():
     sw.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
     sw.add(content)
     vbox.pack_start(sw, True, True, 0)
-    win = Gtk.Window(title="XP Luna control gallery")
+    win = Gtk.Window(title=f"{os.path.basename(os.path.normpath(args.theme)) if args.theme else 'GTK'} control gallery")
     win.connect("destroy", Gtk.main_quit)
     win.add(vbox)
     win.set_default_size(1100, 850)

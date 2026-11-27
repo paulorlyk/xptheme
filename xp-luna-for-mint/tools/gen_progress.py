@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # python -I omits the script dir
+sys.path.insert(1, str(Path(__file__).resolve().parents[2] / "shared/tools"))   # ninegrid, gtkcss
 import msstyles  # noqa: E402
 import ninegrid  # noqa: E402
 from lunacss import BOOST, ms_layers, rule, run, sels  # noqa: E402
@@ -22,10 +23,39 @@ from lunacss import BOOST, ms_layers, rule, run, sels  # noqa: E402
 STATES = ("", ":disabled", ":backdrop", ":backdrop:disabled")
 
 
+INNER = 7          # the fill's thickness: a real XP's 13px bar (copy dialog) less the bar's 3px margins
+
+
+def block_lines(th, chunk, horizontal):
+    """XP's block, as comctl32 6 draws it: Chunk (ChunkVert) drawn into ProgressChunkSize x INNER
+    (SizingType Tile crops it along the bar; its margins squeeze across: msstyles._stretch), then
+    ProgressSpaceSize of the bar showing through, so one period is chunk + space. Returns the
+    lines across the bar, each listed from the end the fill grows from (left; the bottom for
+    vertical bars), the number of lines before the middle one, and the space."""
+    size = int(th.prop("progress", chunk, None, "ProgressChunkSize"))
+    space = int(th.prop("progress", chunk, None, "ProgressSpaceSize"))
+    # drawn whole, then its green end: the left of Chunk; the bottom of ChunkVert, whose gap is on
+    # top (unverified: no vertical bar measured)
+    src = th._source("progress", chunk, None, 1)
+    img = th.draw("progress", chunk, 1, (src.width, INNER) if horizontal else (INNER, src.height))
+    img = img.crop((0, 0, size, INNER) if horizontal else (0, src.height - size, INNER, src.height))
+    px = img.load()
+    clear = (0, 0, 0, 0)
+    cl, cr, ct, cb = msstyles._ints(th.prop("progress", chunk, None, "SizingMargins"))
+    if horizontal:
+        lines = [[px[x, y] for x in range(size)] + [clear] * space for y in range(INNER)]
+        m0, m1 = ct, cb
+    else:   # columns across, from the bottom: ChunkVert's gap is on top
+        lines = [[px[x, y] for y in reversed(range(size))] + [clear] * space for x in range(INNER)]
+        m0, m1 = cl, cr
+    fixed = INNER * m0 // (m0 + m1) if m0 + m1 > INNER else m0
+    return lines, fixed, space
+
+
 def chunk_layers(rows, fixed_before, direction, horizontal):
     """The fill: `rows` are the chunk image's lines across the bar (rows of Chunk, columns of
     ChunkVert), each listed from the end the fill grows from. Each line is one repeating
-    gradient along the bar, 1px across, so the chunks keep their 10px period from that end.
+    gradient along the bar, 1px across, so the blocks keep their period (chunk + space) from that end.
     The lines are a tiled nine-grid across the bar: `fixed_before` lines at the start, the
     next one repeated (a 1px tile: stretched), the rest at the end."""
     n = len(rows)
@@ -48,18 +78,17 @@ def chunk_layers(rows, fixed_before, direction, horizontal):
 
 def progress_rules(th, assets):
     """GtkProgressBar as XP's progress bar (Progress class; comctl32 6 draws it with the theme):
-    Bar (BarVert) over the whole control, then the filled part of its content rect as one run of
-    Chunk (ChunkVert). Both are SizingType=Tile. The bar has no ContentMargins, so uxtheme's
-    content rect is the bar less its SizingMargins: 4px along the bar, 3px across. NormalSize
-    is 100x18, which makes the content exactly Chunk's 12 rows: the trough's padding and the
-    progress node's 12px.
+    Bar (BarVert) over the whole control, then the filled part of its content rect as a row of
+    blocks. Bar is SizingType=Tile with no ContentMargins, so uxtheme's content rect is the bar
+    less its SizingMargins: 4px along the bar, 3px across. 13px across, as a real XP's copy dialog
+    (Bar's NormalSize says 18, but dialogs size their bars): INNER = 7px of fill.
 
-    Chunk is 10px along the bar: 8px of green and a 2px gap in the bar's own white, so the
-    tiled run is the row of separate blocks. It tiles from the end the fill grows from (XP:
-    left, and bottom for vertical bars, whose ChunkVert has its gap on top). GTK may fill from
-    the other end (inverted, right-to-left, or a vertical bar not inverted): the run is then
-    mirrored, still a whole block at the fixed end. GTK puts .left / .right (.top / .bottom) on
-    the progress node for each end it touches. A pulsing bar's block keeps its start anchor.
+    Each block is Chunk drawn into ProgressChunkSize (6px) along and the fill's 7px across, then
+    ProgressSpaceSize (2px) of the bar showing through (block_lines; exact on the real XP bar). The
+    blocks tile from the end the fill grows from (XP: left, and bottom for vertical bars). GTK may
+    fill from the other end (inverted, right-to-left, or a vertical bar not inverted): the run is
+    then mirrored, still a whole block at the fixed end. GTK puts .left / .right (.top / .bottom)
+    on the progress node for each end it touches. A pulsing bar's block keeps its start anchor.
 
     comctl32 grows the run a whole block at a time; GTK sizes the progress node to the exact
     fraction, so the last block can be cut short. CSS can't round a node's size."""
@@ -72,16 +101,8 @@ def progress_rules(th, assets):
         margins = msstyles._ints(th.prop("progress", part, None, "SizingMargins"))   # l r t b
         l, r, t, b = margins
         bar = ms_layers(th._source("progress", part, None, 1), margins, f"progress-{orient}", assets, tile=True)
-        src = th._source("progress", chunk, None, 1)
-        cl, cr, ct, cb = msstyles._ints(th.prop("progress", chunk, None, "SizingMargins"))
-        px = src.load()
-        if h:   # Chunk: rows across, each from the left
-            rows = [[px[x, y] for x in range(src.width)] for y in range(src.height)]
-            fixed, across = ct, src.height
-        else:   # ChunkVert: columns across, each from the bottom
-            rows = [[px[x, y] for y in reversed(range(src.height))] for x in range(src.width)]
-            fixed, across = cl, src.width
-        assert across - fixed - 1 == (cb if h else cr), f"{chunk}: middle line isn't 1px"
+        rows, fixed, _ = block_lines(th, chunk, h)
+        across = INNER
         s = f"{pb}.{orient}"
         out.append(rule(sels([f"{s} > trough"], STATES), **reset, **bar,
                         padding=f"{t}px {r}px {b}px {l}px",
@@ -103,19 +124,13 @@ def progress_rules(th, assets):
     return out
 
 
-def discrete_chunk(src, horizontal, gap):
-    """Chunk (ChunkVert) as one green line along the bar plus its gap, gap last along GTK's
-    order: ChunkVert's top gap moved to the bottom (vertical blocks run top to bottom)."""
-    if horizontal:
-        green = src.crop((0, 0, 1, src.height))
-        out = Image.new("RGBA", (1 + gap, src.height))
-        out.paste(green, (0, 0))
-        out.paste(src.crop((src.width - gap, 0, src.width, src.height)), (1, 0))
-    else:
-        green = src.crop((0, src.height - 1, src.width, src.height))
-        out = Image.new("RGBA", (src.width, 1 + gap))
-        out.paste(green, (0, 0))
-        out.paste(src.crop((0, 0, src.width, gap)), (0, 1))
+def discrete_chunk(lines, horizontal, gap):
+    """XP's block (block_lines) as one green line along the bar plus its clear gap, gap last along
+    GTK's order (vertical blocks run top to bottom)."""
+    n = len(lines)
+    out = Image.new("RGBA", (1 + gap, n) if horizontal else (n, 1 + gap))
+    for i, line in enumerate(lines):
+        out.putpixel((0, i) if horizontal else (i, 0), line[0])
     return out
 
 
@@ -135,7 +150,7 @@ def levelbar_rules(th, assets):
 
     Discrete: each block, floor(content / count) long, is one Chunk stretched along the bar:
     its green stretched, the 2px gap kept at the end (top-to-bottom for vertical bars, so
-    ChunkVert mirrored; right-to-left in RTL). Its minimum is the chunk's 10px. XP never
+    ChunkVert mirrored; right-to-left in RTL). Its minimum is one block period (8px). XP never
     stretches Chunk; its green columns differ only by a level of noise, so the first one
     stands for all (discrete_chunk), which leaves no nearest-neighbour ties to round."""
     out = []
@@ -148,22 +163,14 @@ def levelbar_rules(th, assets):
         margins = msstyles._ints(th.prop("progress", part, None, "SizingMargins"))   # l r t b
         l, r, t, b = margins
         bar = ms_layers(th._source("progress", part, None, 1), margins, f"progress-{orient}", assets, tile=True)
-        src = th._source("progress", chunk, None, 1)
-        cl, cr, ct, cb = msstyles._ints(th.prop("progress", chunk, None, "SizingMargins"))
-        px = src.load()
-        if h:
-            rows = [[px[x, y] for x in range(src.width)] for y in range(src.height)]
-            fixed, across = ct, src.height
-        else:
-            rows = [[px[x, y] for y in reversed(range(src.height))] for x in range(src.width)]
-            fixed, across = cl, src.width
-        along = src.width if h else src.height
-        gap = sum(1 for c in rows[0] if c == rows[0][-1])     # the chunk's gap, at its end
+        rows, fixed, gap = block_lines(th, chunk, h)
+        across = INNER
+        along = len(rows[0])
         s = f"{lb}.{orient}"
         size = lambda a: {"min_height": f"{across}px", "min_width": a} if h else \
             {"min_width": f"{across}px", "min_height": a}
         out.append(rule(sels([f"{s} > trough"], STATES), **reset, **bar, padding=f"{t}px {r}px {b}px {l}px"))
-        # continuous: as long as XP's progress bar (NormalSize 100: 92px of content). On the trough:
+        # continuous: as long as Bar's NormalSize (100: 92px of content). On the trough:
         # GTK never makes the filled block shorter than its minimum
         out.append(rule(sels([f"{s}.continuous > trough"], STATES), **size("92px")))
         out.append(rule(sels([f"{s}.continuous > trough > block"], STATES),
@@ -176,10 +183,11 @@ def levelbar_rules(th, assets):
             out.append(rule(sels([f"{s}.continuous{d} > trough > block.filled"], STATES),
                             **chunk_layers(rows, fixed, direction, h)))
         # discrete: one chunk per block, its green stretched, the gap kept at the block's end
-        img = discrete_chunk(src, h, gap)
+        img = discrete_chunk(rows, h, gap)
         flips = {"": img, ":dir(rtl)": img.transpose(Image.FLIP_LEFT_RIGHT)} if h else {"": img}
         for d, im in flips.items():
-            m = ((gap if d else 0), (0 if d else gap), ct, cb) if h else (cl, cr, 0, gap)   # l r t b
+            rest = INNER - fixed - 1
+            m = ((gap if d else 0), (0 if d else gap), fixed, rest) if h else (fixed, rest, 0, gap)   # l r t b
             name = f"levelbar-{orient}{'-rtl' if d else ''}"
             out.append(rule(sels([f"{s}.discrete{d} > trough > block.filled"], STATES),
                             **ms_layers(im, m, name, assets)))

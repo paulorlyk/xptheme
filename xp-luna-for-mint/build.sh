@@ -8,7 +8,8 @@
 #   own theme (the one Mojave is built from).
 #   --no-borders: windows get XP's caption only, no side or bottom frame. Electron apps
 #   (Slack) hidden to the tray and shown again otherwise come back one border further
-#   left every time (a Muffin bug, see tools/gen_css.py).
+#   left every time (a Muffin bug, see tools/gen_css.py). Only needed with a Muffin
+#   older than upstream commit e2cb1fa6 (linuxmint/muffin#902), which fixed it.
 #   PATH is a Windows XP luna.msstyles (C:\WINDOWS\Resources\Themes\Luna).
 #   Every bitmap and colour of the theme is drawn from it. The file is only read
 #   from PATH; the resulting theme contains Microsoft's artwork: for personal
@@ -65,11 +66,11 @@ if [ -n "$NO_BORDERS" ]; then echo none; else echo xp; fi > "$BUILD/borders"
 realpath "$MSSTYLES" > "$BUILD/msstyles.path"
 
 # Cinnamon only lists a theme under Themes > Applications if it has gtk-3.*/gtk.css. It
-# imports the base theme (tools/base.sh), so build/XP-Luna works when copied to ~/.themes
+# imports the base theme (../shared/tools/base.sh), so build/XP-Luna works when copied to ~/.themes
 # as-is. The tests load it too (registering its gtk.gresource, as GTK does).
-. tools/base.sh
+. ../shared/tools/base.sh
 resolve_base "$BASE" || true
-write_gtk_css "$OUT/gtk-3.0"
+write_gtk_css "$OUT/gtk-3.0" "XP Luna" luna-decorations.css luna.css
 echo "$BASE_NAME" > "$BUILD/base.name"
 echo "$BASE_CSS" > "$BUILD/base.css"
 

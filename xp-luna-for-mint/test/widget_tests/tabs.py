@@ -60,21 +60,36 @@ def run(env):
                 tab.add(close)
             tab.show_all()
             nb.append_page(page, tab)
-        action = Gtk.Button.new_from_icon_name("list-add-symbolic", Gtk.IconSize.MENU)  # like gnome-terminal's "+"
-        action.show()
+        # like gnome-terminal's "+": flat (relief none), the image added as its child
+        action = Gtk.Button(relief=Gtk.ReliefStyle.NONE, focus_on_click=False)
+        action.add(Gtk.Image.new_from_icon_name("list-add-symbolic", Gtk.IconSize.MENU))
+        action.show_all()
         nb.set_action_widget(action, Gtk.PackType.END)
         nb.set_current_page(1)
         nb.set_size_request(260, 120)
         box.add(nb)
         if pos == Gtk.PositionType.TOP:
-            nb_top = nb
+            nb_top, action_top = nb, action
     env.render(box, 560, 140, "tabs")
     page = nb_top.get_nth_page(nb_top.get_current_page())
     strip = page.get_allocation().y - nb_top.get_allocation().y - page.get_margin_top()
-    strip_ok = report(strip <= 26, f"tab strip height             {strip}px with close/action buttons (XP ~22px)")
+    strip_ok = report(strip <= 28, f"tab strip height             {strip}px with close/action buttons (XP: 20px with Tahoma 8pt)")
     dialog_edges, plain_edges = page_edges(env, True), page_edges(env, False)
     # show-border notebooks (dialogs) keep XP's page border; borderless ones (gnome-terminal's
     # tabs, which fill a maximised window) must not draw a grey line along the window edges
     border_ok = all(e == PAGE_BORDER for e in dialog_edges) and not any(e == PAGE_BORDER for e in plain_edges)
     border_ok = report(border_ok, f"page border only with show-border  dialog {dialog_edges}  borderless {plain_edges}")
-    return [strip_ok, border_ok, filled_page(env)]
+    # the action button keeps the toolbar buttons' padding (gen_tabs' ACTION_PAD): with none its
+    # hover and pressed look lay under the icon's own edge
+    a = action_top.get_allocation()
+    plain = Gtk.Button(relief=Gtk.ReliefStyle.NONE)
+    plain.add(Gtk.Image.new_from_icon_name("list-add-symbolic", Gtk.IconSize.MENU))
+    holder = Gtk.Box()
+    plain.set_halign(Gtk.Align.START)
+    plain.set_valign(Gtk.Align.START)
+    holder.add(plain)
+    env.render(holder, 60, 40, "flat-button")
+    want = plain.get_allocation().width
+    pad_ok = report(a.width == want and want > 16,
+                    f"tab strip action button     {a.width}px wide (a flat button elsewhere: {want})")
+    return [strip_ok, border_ok, filled_page(env), pad_ok]

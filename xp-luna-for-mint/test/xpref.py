@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 import msstyles  # noqa: E402
 
-REPAINTS = 4                   # XP re-blends the caption buttons' translucent corners on every repaint
+REPAINTS = 1                   # how often XP has blended the caption buttons' translucent corners (gen_assets)
 PARTS = {"minimize": "minbutton", "maximize": "maxbutton", "restore": "restorebutton", "close": "closebutton"}
 
 

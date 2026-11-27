@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # python -I omits the script dir
+sys.path.insert(1, str(Path(__file__).resolve().parents[2] / "shared/tools"))   # ninegrid, gtkcss
 import msstyles  # noqa: E402
 from lunacss import BOOST, rule, run, save, scaled, sels, stripes  # noqa: E402
 
@@ -29,26 +30,28 @@ def slider_rules(th, assets):
     The trough is the thumb's 21px band and the slider fills it across (no negative margins, so
     the scale's size includes the whole thumb). GTK moves the slider's centre along the trough's
     content box, so the trough's 5px padding makes the slider's travel the trough's full length,
-    as in XP. comctl32's layout (TRACKBAR_CalcChannel /
-    CalcThumb) puts the 4px channel 7px into the thumb band for pointing-down/right thumbs,
-    9px for up/left and 8px for the rectangle, and makes it exactly the thumb's travel: GTK's
-    trough. Track is a 5x5 image stretched with 2px margins, so at 4px thick it is two
+    as in XP. The 4px channel is 8px into the thumb band for pointing-down/right thumbs, 10px
+    for up/left and 9px for the rectangle (measured on a real XP: Display Properties, Mouse,
+    Speech and Volume Control; each 1px more than Classic's), and exactly the thumb's travel:
+    GTK's trough. Track is a 5x5 image stretched with 2px margins, so at 4px thick it is two
     fixed end caps and one middle colour per row. The control's client edge: 8px before the
     channel along the axis, 2px beside the thumb.
 
-    Ticks: 1px lines of Tics' colour, 3px long, 2px beyond the thumb (1px on the top / left
-    side), centred on the thumb's position, which is where GTK centres a mark's indicator."""
+    Ticks: 1px lines of Tics' colour, 3px long, the first and last 4px (away from the channel),
+    2px beyond the thumb (1px on the top / left side), centred on the thumb's position, which is
+    where GTK centres a mark's indicator. GTK's marks are nodes in value order, so the ends are the
+    first and last mark: an app that leaves out the end values gets its outermost marks longer."""
     out = []
     W, L = th._source("trackbar", "thumb", None, 1).size          # 11 x 21
     tics = msstyles.hexc(th.color("trackbar", "tics", None, "Color"))
-    for orient, shapes in (("horizontal", ((":not(.marks-before):not(.marks-after)", "thumb", 8),
-                                           (".marks-after:not(.marks-before)", "thumbbottom", 7),
-                                           (".marks-before:not(.marks-after)", "thumbtop", 9),
-                                           (".marks-before.marks-after", "thumb", 8))),
-                           ("vertical", ((":not(.marks-before):not(.marks-after)", "thumbvert", 8),
-                                         (".marks-after:not(.marks-before)", "thumbright", 7),
-                                         (".marks-before:not(.marks-after)", "thumbleft", 9),
-                                         (".marks-before.marks-after", "thumbvert", 8)))):
+    for orient, shapes in (("horizontal", ((":not(.marks-before):not(.marks-after)", "thumb", 9),
+                                           (".marks-after:not(.marks-before)", "thumbbottom", 8),
+                                           (".marks-before:not(.marks-after)", "thumbtop", 10),
+                                           (".marks-before.marks-after", "thumb", 9))),
+                           ("vertical", ((":not(.marks-before):not(.marks-after)", "thumbvert", 9),
+                                         (".marks-after:not(.marks-before)", "thumbright", 8),
+                                         (".marks-before:not(.marks-after)", "thumbleft", 10),
+                                         (".marks-before.marks-after", "thumbvert", 9)))):
         h = orient == "horizontal"
         sc = f"scale{BOOST}.{orient}"
         # the channel: Track at 4px across, its 2px end caps and its middle
@@ -78,6 +81,8 @@ def slider_rules(th, assets):
         out.append(rule(f"{sc} marks.bottom", margin="2px 0 1px 0" if h else "0 1px 0 2px"))
         out.append(rule(sels([f"{sc} marks mark indicator"], ("", ":disabled", ":backdrop")), color=tics,
                         **({"min_height": "2px", "min_width": "1px"} if h else {"min_width": "2px", "min_height": "1px"})))
+        ends = [f"{sc} marks mark:{n} indicator" for n in ("first-child", "last-child")]
+        out.append(rule(sels(ends, ("", ":disabled", ":backdrop")), **({"min_height": "3px"} if h else {"min_width": "3px"})))
         for shape, part, off in shapes:
             s = f"{sc}{shape}"
             pos = lambda p: f"{p} {off}px" if h else f"{off}px {p}"  # noqa: E731

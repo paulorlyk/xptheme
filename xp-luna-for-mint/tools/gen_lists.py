@@ -19,6 +19,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # python -I omits the script dir
+sys.path.insert(1, str(Path(__file__).resolve().parents[2] / "shared/tools"))   # ninegrid, gtkcss
 import msstyles  # noqa: E402
 from lunacss import BOOST, ms_layers, rule, run, sels  # noqa: E402
 
@@ -139,6 +140,11 @@ def sidebar_rules(th, assets):
         out.append(rule(sels([row], pseudos), **btn[name], background_color="transparent", color=text))
     # the row's icon and label keep the text colour whatever the row's state
     out.append(rule(sels([f"{row} label", f"{row} image"], ("", ":selected", ":backdrop")), color=text))
+    # the row above the file list (box#pathbarbox, the path bar and its folder button) is XP's
+    # "Look in" row, in the dialog's colour. GTK gives it .view, so the base theme painted it the
+    # list's white with a line under it
+    out.append(rule(sels([f"filechooser{BOOST} #pathbarbox{BOOST}"], ("", ":backdrop")), background_color=th.sys("Btnface"),
+                    background_image="none", border="none", box_shadow="none"))
     return out
 
 

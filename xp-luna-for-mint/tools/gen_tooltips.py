@@ -14,13 +14,12 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # python -I omits the script dir
-from gen_menus import SHADOW  # noqa: E402
+sys.path.insert(1, str(Path(__file__).resolve().parents[2] / "shared/tools"))   # ninegrid, gtkcss
 from lunacss import BOOST, rule, run, sels  # noqa: E402
+from xpcommon import SHADOW, TIP_BOX_MARGIN as BOX_MARGIN, TIP_PAD as PAD  # noqa: E402
 
 INFO_BK = "#ffffe1"      # Windows XP's default COLOR_INFOBK (255, 255, 225)
 INFO_TEXT = "#000000"    # ... COLOR_INFOTEXT, also the border
-PAD = (2, 3)             # text inset inside the 1px border (vertical, horizontal): 19px tall at Tahoma 8
-BOX_MARGIN = 6           # GtkTooltipWindow's template margins on its box, outside CSS
 
 
 def tooltip_rules(th, assets):

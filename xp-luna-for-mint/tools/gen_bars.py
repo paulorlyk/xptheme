@@ -21,18 +21,19 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # python -I omits the script dir
+sys.path.insert(1, str(Path(__file__).resolve().parents[2] / "shared/tools"))   # ninegrid, gtkcss
 import msstyles  # noqa: E402
 from gen_widgets import SEL as WIDGET_SEL  # noqa: E402  (push buttons)
 from lunacss import BOOST, ms_layers, rule, run, sels  # noqa: E402
+import xpcommon  # noqa: E402
+from xpcommon import BUTTON_HEIGHT, BUTTON_WIDTH  # noqa: E402,F401
 
-STATUS_HEIGHT = 22  # XP's status bar with its 8pt font
+STATUS_HEIGHT = 23  # a real XP's status bar (Notepad, Explorer) with its 8pt font
 STATUS_INSET = 6    # the text's start
 BOX_MARGIN = 4      # GtkStatusbar's template margins on its message box
 HEADER_HEIGHT = 34  # an app's header bar: Mojave's height (Adwaita's is 46)
 HEADER_PAD = 8      # ... and its side padding
 HEADER_GAP = 5      # space above and below the controls in it: 23 + 2 x 5 = 33, inside 34
-BUTTON_WIDTH = 75   # XP's dialog buttons: 50 dialog units, 75px with Tahoma 8
-BUTTON_HEIGHT = 23  # ... and 14 dialog units high
 BUTTON_PAD = 7 + 1  # gen_widgets' push button padding and border, each side
 HEADER_PART = "explorerbar::rebar"   # app header bars: XP's blue toolbar background
 HEADER_SHADE = 4    # sixteenths of its bottom (blue) line mixed into the rows above: slightly darker
@@ -151,26 +152,11 @@ def infobar_rules(th, assets):
     return out
 
 
-GTK_CHILD_MIN = (85, 27)   # GtkButtonBox's child-min-width / -height defaults
-GTK_CHILD_PAD = 4          # ... and its child-internal-pad-x, added to each side of every button
-
-
 def buttonbox_rules(th, assets):
-    """GtkButtonBox (dialog action areas: Help, Cancel, OK) makes each button at least 85x27, and
-    adds 4px to each side of every button's width. XP's dialog buttons are 75x23. Its style
-    properties (child-min-width etc.) could change that, but they are deprecated: GTK warns about
-    them whenever the theme is parsed after a button box exists (switching themes with apps open).
-    So each button takes the difference as CSS margins, 5px at the sides and 2px above and below,
-    and draws at 75x23. Its side padding is 4px less, which takes back GTK's 4px so wider labels
-    keep XP's width. The cost: 10px more between buttons than the box's spacing, and a 27px row.
-    The margins also keep the label centred: GTK hands a button the baseline of its natural
-    height, which now is the row's. Stack switchers' buttons get the same 75px minimum (Mojave
-    widens them to 80px)."""
-    mx, my = (GTK_CHILD_MIN[0] - BUTTON_WIDTH) // 2, (GTK_CHILD_MIN[1] - BUTTON_HEIGHT) // 2
-    inner = BUTTON_PAD - 1 - GTK_CHILD_PAD   # gen_widgets' padding (BUTTON_PAD less the 1px border), less GTK's pad
-    buttons = ", ".join(f"buttonbox{BOOST} > {s.strip()}" for s in WIDGET_SEL.split(","))
-    return [rule(buttons, margin=f"{my}px {mx}px", padding_left=f"{inner}px", padding_right=f"{inner}px"),
-            rule(f"stackswitcher{BOOST} > button.text-button{BOOST}", min_width=f"{BUTTON_WIDTH - 2 * BUTTON_PAD}px")]
+    """GtkButtonBox's buttons at XP's 75x23 (xpcommon.buttonbox_rules); stack switchers' buttons get
+    the same 75px minimum (Mojave widens them to 80px)."""
+    return xpcommon.buttonbox_rules(WIDGET_SEL, BOOST, BUTTON_PAD - 1) + [
+        rule(f"stackswitcher{BOOST} > button.text-button{BOOST}", min_width=f"{BUTTON_WIDTH - 2 * BUTTON_PAD}px")]
 
 
 if __name__ == "__main__":

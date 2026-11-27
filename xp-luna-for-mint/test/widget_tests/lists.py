@@ -6,7 +6,7 @@ from gi.repository import Gtk
 
 from gi.repository import Gdk
 
-from .common import diff, hold, pixels, pointer, report, settle, size
+from .common import diff, gtktest, hold, pixels, pointer, report, settle, size
 
 F = Gtk.StateFlags
 
@@ -133,6 +133,8 @@ def run(env):
     results = places_sidebar(env)
     white, blue, face = colour(env, "fill"), colour(env, "highlight"), colour(env, "btnface")
     tint_view, tint_row = colour(env, "hover-view"), colour(env, "hover-row")
+    row = gtktest.pathbar_row()
+    results.append(report(row == {face}, f"file chooser path bar row: colours {sorted(row)} (want Btnface {face})"))
 
     # expanders: GTK's filled triangles in the text colour, pointing right (collapsed: taller than
     # wide) and down (expanded: wider than tall)

@@ -4,3 +4,7 @@ dist/
 
 # Microsoft's file: never commit it
 *.msstyles
+
+# XP's colour scheme for xp-classic-for-mint: Microsoft's file, never commit it
+# (xp-classic-for-mint/test/synthetic.theme is ours)
+Windows Classic.theme

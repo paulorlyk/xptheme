@@ -18,7 +18,7 @@ Or with Docker (BuildKit, the default since Docker 23):
 ./docker-build.sh --msstyles /path/to/luna.msstyles    # → dist/XP-Luna-for-Mint
 ```
 
-The Docker build leaves no image or container behind. `luna.msstyles` is only bind-mounted while the theme builds, so it isn't stored in any layer. Docker's build cache does keep a copy of the built theme; `docker builder prune` clears it.
+The Docker build leaves no image or container behind. `luna.msstyles` (and `Windows Classic.theme` for XP-Classic) is only bind-mounted while its theme builds, so it isn't stored in any layer. Docker's build cache does keep a copy of the built theme; `docker builder prune` clears it.
 
 Options:
 - `XP_MSSTYLES=/path/to/luna.msstyles` can be set instead of `--msstyles`.
@@ -38,6 +38,21 @@ For the closest match to XP, also set:
 - **Scrollbars:** turn off overlay scrollbars (*Themes → Settings → Use overlay scroll bars*).
 - **Title font:** `gsettings set org.cinnamon.desktop.wm.preferences titlebar-font 'Trebuchet MS Bold 10'`, with Microsoft's core fonts installed (`ttf-mscorefonts-installer`).
 
+## XP-Classic
+
+`xp-classic-for-mint/` builds a second theme, XP-Classic-for-Mint: Windows XP's *Windows Classic style*. It styles the same windows and widgets as XP-Luna; what is still unverified against real XP is listed in `TODO.md`. Classic has no bitmaps: Windows draws it from a colour scheme, which the build reads from XP's `Windows Classic.theme` (`C:\WINDOWS\Resources\Themes`):
+
+```sh
+xp-classic-for-mint/build.sh --scheme "/path/to/Windows Classic.theme"    # → xp-classic-for-mint/build/XP-Classic-for-Mint
+./docker-build.sh --scheme "/path/to/Windows Classic.theme"               # or in Docker → dist/XP-Classic-for-Mint
+```
+
+Install it like XP-Luna (`cp -r xp-classic-for-mint/build/XP-Classic-for-Mint ~/.local/share/themes/`). For XP's text, set the desktop font to Tahoma 8 if you have it (Cinnamon: System Settings → Fonts); the theme only names the scheme's caption font for titles.
+
+Its glyphs are drawn by the build tool, and it reads no Microsoft fonts or bitmaps. (`xp-classic-for-mint/test/synthetic.theme` is a fake scheme for the tests, not XP's colours.)
+
+`shared/` holds the code both themes use.
+
 ## Legal
 
 **Not affiliated with Microsoft.** This is an independent project, not made, endorsed or supported by Microsoft. Microsoft, Windows and Windows XP are trademarks of Microsoft Corporation; "Luna" is Windows XP's name for its visual style. They are used here only to describe what the theme imitates.
@@ -53,5 +68,7 @@ For the closest match to XP, also set:
 - sell it or bundle it with anything else.
 
 You may share the build tool itself under the MIT license, so that others can build their own copy from their own `luna.msstyles`.
+
+**XP-Classic** contains no Microsoft artwork: only colour and size values read from your `Windows Classic.theme`, and glyphs drawn by the build tool. The same non-affiliation applies. Check with someone qualified before you distribute a built copy.
 
 You are responsible for how you use the tool and what you build with it. This section is not legal advice.

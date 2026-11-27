@@ -39,7 +39,8 @@ Muffin's visible side and bottom borders are 0. Electron apps (Slack) hidden to 
 tray come back one visible border to the left of where they were, every time: they
 map with Static gravity and Muffin, unmapping them, puts the client where the frame's
 visible corner was (frame.c, meta_window_destroy_frame). With no side borders they
-only drift upward, and that stops at the top of the work area.
+only drift upward, and that stops at the top of the work area. Muffin fixed this in
+commit e2cb1fa6 (linuxmint/muffin#902): with that, the option isn't needed.
 
 usage: gen_css.py <assets-dir> <out-file> --msstyles PATH [--no-borders]
 """
@@ -49,7 +50,9 @@ from pathlib import Path
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # python -I omits the script dir
+sys.path.insert(1, str(Path(__file__).resolve().parents[2] / "shared/tools"))   # ninegrid, gtkcss
 import msstyles  # noqa: E402
+import muffin  # noqa: E402
 import ninegrid  # noqa: E402
 
 W = "window.ssd"
@@ -63,6 +66,38 @@ TITLE_H, MAX_TITLE_H = 29, 26
 # exactly what Muffin's corner formula (get_visible_region in src/ui/frames.c)
 # yields for radius 8.
 CORNER_R = 8
+BTN_W = 21
+# The button boxes are SLACK px wider than the bitmaps, on the left: at 2x/3x Muffin draws them
+# whole logical pixels right of where 1x puts them (the decoration's padding goes into its
+# button layout unscaled: shared/tools/muffin.py), and the @2/@3 bitmaps are drawn that much
+# further left in their boxes (boxed_buttons). The boxes overlap by the slack, so the bitmaps
+# keep XP's 2px gaps.
+SLACK = 2
+
+
+def boxed_buttons(assets, borders):
+    """box-<name> copies of the caption button bitmaps (gen_assets' btn-*, max-btn-* and their
+    inactive- variants) in BTN_W + SLACK px boxes: at 1x the bitmap at SLACK, at 2x/3x pixel-
+    enlarged and moved left by Muffin's offset at that scale (maximised windows have no frame
+    and no offset)."""
+    def shift(frame, side, pad):
+        return {k: muffin.offsets(1000, frame, (side, side) + pad, (BTN_W + SLACK, BTN_W),
+                                  (-1 - SLACK, -3, 0, 0), k) for k in (2, 3)}
+    normal = shift((3, 3, 0, 3), 5, (6, 2)) if borders else shift((0, 0, 0, 0), 8, (5, 3))
+    maxed = shift((0, 0, 0, 0), 5, (2, 3))
+    for src in sorted(assets.glob("*btn-*.png")):
+        if "@" in src.name or src.name.startswith("box-"):
+            continue
+        off = maxed if "max-btn-" in src.name else normal
+        img = Image.open(src).convert("RGBA")
+        for k in (1, 2, 3):
+            # every button the same: Muffin's offset depends on the scale, not on the button
+            dx, dy = (0, 0) if k == 1 else off[k][0]
+            assert all(o == off[k][0] for o in off[k]) if k > 1 else True
+            assert 0 <= SLACK - dx and dy == 0, f"Muffin offset {dx, dy} at {k}x needs more slack"
+            box = Image.new("RGBA", ((BTN_W + SLACK) * k, BTN_W * k), (0, 0, 0, 0))
+            box.paste(img.resize((img.width * k, img.height * k), Image.NEAREST), ((SLACK - dx) * k, 0))
+            box.save(assets / (f"box-{src.stem}.png" if k == 1 else f"box-{src.stem}@{k}.png"))
 
 
 def a(name):
@@ -190,12 +225,12 @@ def css(assets, th, borders=True):
     # --- caption buttons -----------------------------------------------------------
     out.append(rule(f"{BTN}, {BTN}:hover, {BTN}:active, {BTN}:backdrop, {BTN}:backdrop:hover",
         # right edge: 3px frame + 5px caption border - (-3px) = 5px, as in XP;
-        # gap: -3px + 6px (muffin) + -1px = 2px, as in XP
-        min_width="21px", min_height="21px", padding="0", margin="0 -3px 0 -1px",
+        # gap: -3px + 6px (muffin) + -1px = 2px, as in XP, less the boxes' slack (SLACK)
+        min_width=f"{BTN_W + SLACK}px", min_height=f"{BTN_W}px", padding="0", margin=f"0 -3px 0 {-1 - SLACK}px",
         border="none", border_image="none", border_radius="0", outline="none",
         box_shadow="none", text_shadow="none", color="transparent",
         background_color="transparent", background_image="none",
-        background_repeat="no-repeat", background_position="center", background_size="21px 21px",
+        background_repeat="no-repeat", background_position="0 0", background_size=f"{BTN_W + SLACK}px {BTN_W}px",
         _gtk_icon_shadow="none", _gtk_icon_transform="scale(0)", transition="none"))
     out.append(rule(f"{BTN} image", min_width="0", min_height="0", padding="0", margin="0",
                     _gtk_icon_transform="scale(0)"))
@@ -206,12 +241,12 @@ def css(assets, th, borders=True):
         # blended with the maximised caption
         for win, f, m in ((W, fn, ""), (f"{W}.maximized", fn_max, "max-")):
             b = f"{win} decoration headerbar.titlebar.default-decoration button.titlebutton.{cls}"
-            out.append(rule(f"{b}", background_image=a(f"{m}btn-{f}-normal")))
-            out.append(rule(f"{b}:backdrop", background_image=a(f"inactive-{m}btn-{f}-normal")))
+            out.append(rule(f"{b}", background_image=a(f"box-{m}btn-{f}-normal")))
+            out.append(rule(f"{b}:backdrop", background_image=a(f"box-inactive-{m}btn-{f}-normal")))
             # In XP, hovering a button of an inactive window lights it up as if active.
-            out.append(rule(f"{b}:hover, {b}:backdrop:hover", background_image=a(f"{m}btn-{f}-prelight")))
+            out.append(rule(f"{b}:hover, {b}:backdrop:hover", background_image=a(f"box-{m}btn-{f}-prelight")))
             out.append(rule(f"{b}:active, {b}:backdrop:active, {b}:hover:active",
-                            background_image=a(f"{m}btn-{f}-pressed")))
+                            background_image=a(f"box-{m}btn-{f}-pressed")))
 
     return "\n".join(out)
 
@@ -220,5 +255,6 @@ if __name__ == "__main__":
     args, theme = msstyles.from_argv(sys.argv[1:])
     borders = "--no-borders" not in args
     args = [x for x in args if x != "--no-borders"]
+    boxed_buttons(Path(args[0]), borders)
     with open(args[1], "w") as fh:
         fh.write(css(Path(args[0]), theme, borders))

@@ -64,14 +64,19 @@ light = th.color("sysmetrics", key="BtnHighlight")
 img = Image.new("RGB", (1, 20), bar)
 img.putpixel((0, 19), light)
 img.save(out / "ref-menubar.png")
-# text fields: Edit is BorderFill, so a pixel of border and one of fill per state
+# text fields: Edit is BorderFill, so a pixel of border and one of fill per state; a disabled
+# edit control fills with the dialog colour (SysMetrics Btnface, a real XP's), not EditText's
+def _field_fill(state):
+    return th.color("sysmetrics", key="Btnface")[:3] if state else th.color("edit", "edittext", None, "FillColor")
+
+
 for name, state in (("normal", None), ("disabled", "disabled")):
     img = Image.new("RGB", (2, 1), th.color("edit", "edittext", state, "BorderColor"))
-    img.putpixel((1, 0), th.color("edit", "edittext", state, "FillColor"))
+    img.putpixel((1, 0), _field_fill(state))
     img.save(out / f"ref-edit-{name}.png")
-# spin button arrows: Spin.Up over Spin.Down in the 21px inside a field's border, on Edit's fill
+# spin button arrows: Spin.Up over Spin.Down in the 21px inside a field's border, on its fill
 for name, i, state in (("normal", 1, None), ("disabled", 4, "disabled")):
-    img = Image.new("RGBA", (15, 21), th.color("edit", "edittext", state, "FillColor") + (255,))
+    img = Image.new("RGBA", (15, 21), _field_fill(state) + (255,))
     img.alpha_composite(th.draw("spin", "up", i, (15, 10)), (0, 0))
     img.alpha_composite(th.draw("spin", "down", i, (15, 11)), (0, 10))
     img.convert("RGB").save(out / f"ref-spin-{name}.png")
@@ -85,25 +90,26 @@ for w in (40, 41):
 # DrawOneTic): 11x21 thumb, 4px Track channel spanning the thumb's travel, 3px Tics lines 2px after
 # the thumb (1px before it). The client edge the theme gives the control: 8px along, 2px across.
 TRACK_LEN, TRACK_VALUE, TRACK_MARKS = 107, 25, (0, 25, 50, 75, 100)
-THUMBS = {(True, False): ("thumbbottom", 7), (False, True): ("thumbtop", 9), (True, True): ("thumb", 8),
-          (False, False): ("thumb", 8)}           # no marks: the plain rectangle (tools/gen_sliders.py)
+THUMBS = {(True, False): ("thumbbottom", 8), (False, True): ("thumbtop", 10), (True, True): ("thumb", 9),
+          (False, False): ("thumb", 9)}           # no marks: the plain rectangle (tools/gen_sliders.py)
 
 
 def trackbar(horizontal, after, before, state):
     part, off = THUMBS[(after, before)]
     if not horizontal:
         part = {"thumbbottom": "thumbright", "thumbtop": "thumbleft", "thumb": "thumbvert"}[part]
-    cross = 2 + (4 if before else 0) + 21 + (5 if after else 0) + 2
+    cross = 2 + (5 if before else 0) + 21 + (6 if after else 0) + 2     # the end ticks' extra pixel each side
     xy = (lambda a, c: (a, c)) if horizontal else (lambda a, c: (c, a))
     img = Image.new("RGBA", xy(TRACK_LEN, cross), dialog + (255,))
-    band = 2 + (4 if before else 0)                        # the thumb's 21px band
+    band = 2 + (5 if before else 0)                        # the thumb's 21px band
     chan = TRACK_LEN - 16
     img.alpha_composite(th.draw("trackbar", "track" if horizontal else "trackvert", 1, xy(chan, 4)), xy(8, band + off))
     travel = chan - 11
     tics = th.color("trackbar", "tics", None, "Color") + (255,)
     for m in TRACK_MARKS:
         a = 8 + 5 + travel * m // 100
-        rows = ([band + 21 + 2 + i for i in range(3)] if after else []) + ([band - 2 - i for i in range(3)] if before else [])
+        n = 4 if m in (TRACK_MARKS[0], TRACK_MARKS[-1]) else 3    # XP's end ticks are 4px
+        rows = ([band + 21 + 2 + i for i in range(n)] if after else []) + ([band - 2 - i for i in range(n)] if before else [])
         for c in rows:
             img.putpixel(xy(a, c), tics)
     img.alpha_composite(th._source("trackbar", part, None, state), xy(8 + travel * TRACK_VALUE // 100, band))
@@ -116,23 +122,39 @@ for horizontal, o in ((True, "h"), (False, "v")):
     for after, before, ticks in ((False, False, "none"), (True, False, "after"), (False, True, "before"),
                                  (True, True, "both")):
         trackbar(horizontal, after, before, 1).save(out / f"ref-scale-{o}-{ticks}-normal.png")
-# progress bars: Progress.Bar (BarVert) over the control, then the fill in the bar's content rect
-# (the bar less its SizingMargins: 4px along, 3px across) as one tiled run of Chunk (ChunkVert),
-# anchored at the end it grows from (XP: left / bottom; mirrored for the other end). XP grows the
-# run a block at a time; GTK fills the exact fraction, so a run that isn't whole blocks is
-# XP's next whole-block run, cut off.
+# progress bars: Progress.Bar (BarVert) over the 13px control, then the fill in the bar's content
+# rect (the bar less its SizingMargins: 4px along, 3px across, so 7px of fill) as XP's blocks:
+# Chunk (ChunkVert) drawn into ProgressChunkSize x 7, then ProgressSpaceSize of the bar, from the
+# end the run grows from (XP: left / bottom; mirrored for the other end). XP grows the run a block
+# at a time; GTK fills the exact fraction, so a run that isn't whole blocks is XP's next
+# whole-block run, cut off.
 PROG_LEN = 108                                   # 100px of content
+PROG_ACROSS, PROG_INNER = 13, 7
 PROG_CASES = {"h-50": (True, 50, False), "h-37": (True, 37, False), "h-37-inverted": (True, 37, True),
               "h-100": (True, 100, False), "v-37-inverted": (False, 37, True), "v-37": (False, 37, False)}
 
 
+def blocks(horizontal, length):
+    """`length` px of XP's blocks along the bar from where it grows (left; the bottom of a
+    vertical bar)."""
+    chunk = "chunk" if horizontal else "chunkvert"
+    size = int(th.prop("progress", chunk, None, "ProgressChunkSize"))
+    space = int(th.prop("progress", chunk, None, "ProgressSpaceSize"))
+    src = th._source("progress", chunk, None, 1)      # drawn whole, then its green end
+    one = th.draw("progress", chunk, 1, (src.width, PROG_INNER) if horizontal else (PROG_INNER, src.height))
+    one = one.crop((0, 0, size, PROG_INNER) if horizontal else (0, src.height - size, PROG_INNER, src.height))
+    whole = -(-length // (size + space)) * (size + space)
+    run = Image.new("RGBA", (whole, PROG_INNER) if horizontal else (PROG_INNER, whole))
+    for a in range(0, whole, size + space):
+        run.alpha_composite(one, (a, 0) if horizontal else (0, whole - a - size))
+    return run.crop((0, 0, length, PROG_INNER) if horizontal else (0, whole - length, PROG_INNER, whole))
+
+
 def progress(horizontal, run, mirrored):
     xy = (lambda a, c: (a, c)) if horizontal else (lambda a, c: (c, a))
-    img = th.draw("progress", "bar" if horizontal else "barvert", 1, xy(PROG_LEN, 18))
+    img = th.draw("progress", "bar" if horizontal else "barvert", 1, xy(PROG_LEN, PROG_ACROSS))
     if run:
-        whole = -(-run // 10) * 10
-        chunk = th.draw("progress", "chunk" if horizontal else "chunkvert", 1, xy(whole, 12))
-        chunk = chunk.crop((0, 0, run, 12)) if horizontal else chunk.crop((0, whole - run, 12, whole))
+        chunk = blocks(horizontal, run)
         if mirrored:
             chunk = chunk.transpose(Image.FLIP_LEFT_RIGHT if horizontal else Image.FLIP_TOP_BOTTOM)
         # placed at the far end (right, bottom) when anchored there
@@ -177,24 +199,19 @@ def levelbar(horizontal, value, count, rtl):
     if count is None:
         return progress(horizontal, value, rtl or not horizontal)
     xy = (lambda a, c: (a, c)) if horizontal else (lambda a, c: (c, a))
-    img = th.draw("progress", "bar" if horizontal else "barvert", 1, xy(PROG_LEN, 18))
-    src = th._source("progress", "chunk" if horizontal else "chunkvert", None, 1)
-    # one green line (the first along the bar; the others differ by a level of noise) and the gap
-    if horizontal:
-        src = Image.new("RGBA", (3, 12))
-        src.paste(th._source("progress", "chunk", None, 1).crop((0, 0, 1, 12)), (0, 0))
-        src.paste(th._source("progress", "chunk", None, 1).crop((8, 0, 10, 12)), (1, 0))
-    else:
-        full = src
-        src = Image.new("RGBA", (12, 3))
-        src.paste(full.crop((0, 9, 12, 10)), (0, 0))
-        src.paste(full.crop((0, 0, 12, 2)), (0, 1))
+    img = th.draw("progress", "bar" if horizontal else "barvert", 1, xy(PROG_LEN, PROG_ACROSS))
+    # one green line of XP's block (the first along the bar; the others differ by a level of
+    # noise) and the clear gap
+    one = blocks(horizontal, 1)
+    src = Image.new("RGBA", xy(3, PROG_INNER))
+    src.paste(one, (0, 0))
     if rtl:
         src = src.transpose(Image.FLIP_LEFT_RIGHT)
-    margins = ((2 if rtl else 0), (0 if rtl else 2), 6, 5) if horizontal else (6, 5, 0, 2)
+    fixed, rest = 3, PROG_INNER - 3 - 1
+    margins = ((2 if rtl else 0), (0 if rtl else 2), fixed, rest) if horizontal else (fixed, rest, 0, 2)
     n = 100 // count
     for i in range(count - value, count) if rtl else range(value):
-        img.alpha_composite(th._stretch(src, *xy(n, 12), margins), xy(4 + i * n, 3))
+        img.alpha_composite(th._stretch(src, *xy(n, PROG_INNER), margins), xy(4 + i * n, 3))
     return img.convert("RGB")
 
 
@@ -276,7 +293,7 @@ for kind, (fill, text) in gen_bars.infobar_colours(th).items():
     img.save(out / f"ref-infobar-{kind or 'other'}.png")
 # labels and calendars (tools/gen_labels.py): one pixel per colour, in LABEL_COLOURS order
 LABEL_COLOURS = (("text", (0, 0, 0)), ("gray", th.color("sysmetrics", key="GrayText")),
-                 ("link", th.color("explorerbar", "normalgroupbackground", None, "TextColor")),
+                 ("link", th.color("explorerbar", "normalgrouphead", None, "TextColor")),
                  ("highlight", th.color("sysmetrics", key="Highlight")),
                  ("title", th.color("sysmetrics", key="ActiveCaption")),
                  ("title-off", th.color("sysmetrics", key="InactiveCaption")),

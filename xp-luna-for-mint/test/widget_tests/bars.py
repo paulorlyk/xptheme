@@ -1,4 +1,4 @@
-"""Bars (gen_bars): the status bar is XP's Status background at XP's 22px, inside the widget's
+"""Bars (gen_bars): the status bar is XP's Status background at XP's 23px, inside the widget's
 margins (reaching the slot's edges when an app zeroes them, as gedit does); an action bar the same background; a header bar ExplorerBar::Rebar's (XP's blue toolbar background, within
 the same row blend); info bars solid in their colours with the message in its text colour; button
 box buttons XP's 75x23 dialog buttons, and stack switcher buttons at least 75px wide, joined: XP's
@@ -43,15 +43,15 @@ def status_bar(env):
         win.destroy()
         w, h = size(path)
         mx, my = margins
-        want = (200 - 2 * mx, 22)
-        err = background(env, path, mx, my, 200 - 2 * mx, 22, "status") if (a.width, a.height) == want else None
+        want = (200 - 2 * mx, 23)
+        err = background(env, path, mx, my, 200 - 2 * mx, 23, "status") if (a.width, a.height) == want else None
         # the Status ref is drawn 200 wide: for the stock bar, compare its left 50px and right 17px
         if err is not None and mx:
-            ref = pixels(env.refs / "ref-status-22.png")
+            ref = pixels(env.refs / "ref-status-23.png")
             got = pixels(path)
             xs = list(range(50)) + list(range(want[0] - 17, want[0]))
-            err = max(diff(got(mx + x, my + y), ref(x if x < 50 else x + 2 * mx, y)) for y in range(22) for x in xs)
-        results.append(report(err == 0 and (w, h) == (200, 22 + 2 * my),
+            err = max(diff(got(mx + x, my + y), ref(x if x < 50 else x + 2 * mx, y)) for y in range(23) for x in xs)
+        results.append(report(err == 0 and (w, h) == (200, 23 + 2 * my),
                               f"status bar {name}: bar {a.width}x{a.height} (want {want[0]}x{want[1]}) in a"
                               f" {w}x{h} slot, Status background: max error {err}"))
     return results

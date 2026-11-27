@@ -14,25 +14,17 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # python -I omits the script dir
+sys.path.insert(1, str(Path(__file__).resolve().parents[2] / "shared/tools"))   # ninegrid, gtkcss
 import msstyles  # noqa: E402
 import ninegrid  # noqa: E402
 from PIL import Image  # noqa: E402
 from lunacss import BOOST, rule, save, scaled  # noqa: E402
+from gtknodes import push_buttons  # noqa: E402
 
-# Push buttons only: not caption buttons, flat (toolbar/inline) buttons or the
-# arrows inside spin buttons and scrollbars (.up/.down).
-# The :not(.luna-N) filters (BOOST) are always true; they only raise specificity so
-# the rules win over base themes' longer selectors (GTK 3 has no !important).
-# GTK 3 marks a button .text-button (label only) or .image-button (icon only); one
-# with an icon *and* a label gets neither class, nor do file, font, colour and
-# popup-menu buttons. The third selector catches those, with fewer filters so all
-# three rank the same. Tree view column headers are class-less too: their own rule
-# (tools/gen_headers.py) out-ranks this one.
-# (Combo box buttons are drop-down fields: tools/gen_menus.py.)
-SEL = (f"button.text-button:not(.flat):not(.titlebutton):not(.combo){BOOST}, "
-       f"button.image-button:not(.flat):not(.titlebutton):not(.combo){BOOST}, "
-       f"button:not(.text-button):not(.image-button):not(.flat):not(.titlebutton):not(.combo):not(.up):not(.down)"
-       f"{BOOST[:BOOST.index(':not(.luna-3)')]}")
+# Push buttons (shared/tools/gtknodes.py). Tree view column headers are among them: their
+# own rule (tools/gen_headers.py) out-ranks this one. (Combo box buttons are drop-down
+# fields: tools/gen_menus.py.)
+SEL = push_buttons(BOOST)
 
 
 EDGE = 4   # the push button's outer columns/rows: shadow ring, blue border, the state's 2px inner ring

@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # python -I omits the script dir
+sys.path.insert(1, str(Path(__file__).resolve().parents[2] / "shared/tools"))   # ninegrid, gtkcss
 from lunacss import BOOST, rule, run, save, scaled, sels  # noqa: E402
 
 BOX = 13
@@ -40,6 +41,11 @@ def check_rules(th, assets):
             for state, pseudos in forms.items():
                 sels = [f"{kind}{BOOST}{value_sel}{p}{bd}" for p in pseudos for bd in ("", ":backdrop")]
                 out.append(rule(", ".join(sels), **reset, _gtk_icon_source=scaled(f"{kind}-{value}{state}")))
+        # XP's label ink starts 3px after the box (a real XP's Computer Name dialog); the base
+        # theme leaves 4px. Only a box beside a label: a lone box keeps its margins
+        button = "checkbutton" if kind == "check" else "radiobutton"
+        for d, margin in (("ltr", "0 3px 0 4px"), ("rtl", "0 4px 0 3px")):
+            out.append(rule(f"{button}{BOOST}:dir({d}) > {kind}:not(:only-child)", margin=margin))
     return out
 
 

@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # python -I omits the script dir
+sys.path.insert(1, str(Path(__file__).resolve().parents[2] / "shared/tools"))   # ninegrid, gtkcss
 import msstyles  # noqa: E402
 import ninegrid  # noqa: E402
 from lunacss import BOOST, rule, run, save, scaled, sels  # noqa: E402
@@ -150,7 +151,7 @@ def vertical_spin_rules(th, assets):
 
 def entry_rules(th, assets):
     """Text fields: luna.msstyles' Edit is BorderFill, a 1px BorderColor line around FillColor, with
-    EditText's disabled fill and text colour (uxtheme falls back to Edit's border). Fields marked
+    EditText's disabled text colour, filled Btnface when disabled (uxtheme falls back to Edit's border). Fields marked
     .error are filled red (below). No focus ring: XP only shows the caret. 23px tall like an XP dialog's edit box (14 dialog
     units with Tahoma 8), the same as the editable drop-down list's field."""
     c = lambda state, key: msstyles.hexc(th.color("edit", "edittext", state, key))  # noqa: E731
@@ -177,8 +178,11 @@ def entry_rules(th, assets):
                     background_color="transparent", background_image="none", box_shadow="none",
                     min_height="17px", padding="2px 3px"))
     # (EditText also has a read-only fill, but GTK 3 gives non-editable entries no class or state to match)
+    # a disabled edit control paints its inside in the dialog colour (WM_CTLCOLORSTATIC), not EditText's
+    # disabled FillColor: SysMetrics Btnface, as on a real XP's Computer Name tab
+    face = th.sys("Btnface")
     out.append(rule(sels(entries, (":disabled", ":disabled:backdrop")), border_color=c("disabled", "BorderColor"),
-                    background_color=c("disabled", "FillColor"), color=c("disabled", "TextColor")))
+                    background_color=face, color=c("disabled", "TextColor")))
     out += spin_rules(th, assets)
     out += vertical_spin_rules(th, assets)
     sel = [f"entry{BOOST} selection{BOOST}", f"spinbutton{BOOST} entry selection{BOOST}"]
@@ -192,9 +196,9 @@ def entry_rules(th, assets):
     tv = f"textview{BOOST}"
     out.append(rule(sels([f"{tv} text{BOOST}"], ("", ":backdrop")), background_color=c(None, "FillColor"),
                     background_image="none", color="#000", caret_color="#000"))
-    out.append(rule(sels([f"{tv}:disabled text{BOOST}"], ("", ":backdrop")), background_color=c("disabled", "FillColor"),
+    out.append(rule(sels([f"{tv}:disabled text{BOOST}"], ("", ":backdrop")), background_color=face,
                     color=c("disabled", "TextColor")))
-    out.append(rule(sels([f"{tv}:disabled"], ("", ":backdrop")), background_color=c("disabled", "FillColor")))
+    out.append(rule(sels([f"{tv}:disabled"], ("", ":backdrop")), background_color=face))
     sel.append(f"{tv} text{BOOST} selection{BOOST}")
     out.append(rule(sels(sel, ("", ":focus", ":backdrop")), background_color=hilite, color=hilite_text))
     return out

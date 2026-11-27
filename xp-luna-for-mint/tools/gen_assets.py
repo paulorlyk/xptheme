@@ -9,7 +9,7 @@ theme engine (uxtheme) does. The geometry is that of a 260px-wide XP window:
     at 26px (XP pushes the top 3 rows off-screen), whose middle XP tiles;
   - caption buttons: Window.{Min,Max,Restore,Close}Button, 1 normal, 2 hot,
     3 pressed, 5 inactive, composited REPAINTS times over the caption at their
-    place, as XP leaves them on screen (it repaints them and blends their
+    place, as XP leaves them on screen (it can repaint them and blend their
     translucent corners again each time);
   - frame: XP draws a 3px frame by clipping the outer column of the 4px-wide
     side bitmaps and squeezing the bottom one to 3 rows. The side strips are
@@ -25,6 +25,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # python -I omits the script dir
+sys.path.insert(1, str(Path(__file__).resolve().parents[2] / "shared/tools"))   # ninegrid, gtkcss
 import msstyles  # noqa: E402
 
 W = 260
@@ -38,7 +39,7 @@ BTN_X = {"minimize": 188, "maximize": 211, "restore": 211, "close": 234}
 SIDE = 3                     # frame thickness (left / right / bottom)
 SIDE_SRC = 4                 # XP's side frame bitmaps are drawn this wide, outer column clipped
 SCALES = (1, 2, 3)           # HiDPI copies written for each bitmap (see save)
-REPAINTS = 4
+REPAINTS = 1   # four real XP windows (active, inactive, fixed, resizable) blend them once: exact
 THEME_NAME = "XP-Luna"       # written on the preview's button
 BUTTON_W, BUTTON_H = 75, 23  # an XP dialog button
 FONT_PX = 11                 # Tahoma 8pt at 96 dpi, XP's button font
@@ -115,19 +116,21 @@ def button_font():
 
 
 def preview(th):
-    """Theme chooser thumbnail: the top of a 260px XP window (caption, buttons, frame), with a
+    """Theme chooser thumbnail: a whole 260x120 XP window (caption, buttons, frame), with a
     default push button (Button.PushButton 5) bearing the theme's name in its client area's centre."""
     h = 120
     img = Image.new("RGBA", (W, h), (0, 0, 0, 0))
-    img.paste(th.color("sysmetrics", key="Btnface") + (255,), (SIDE, TITLE_H, W - SIDE, h))
+    body = h - TITLE_H - SIDE                                     # the client area's height
+    img.paste(th.color("sysmetrics", key="Btnface") + (255,), (SIDE, TITLE_H, W - SIDE, h - SIDE))
     for side, part, x in (("left", "frameleft", -1), ("right", "frameright", W - SIDE)):
-        strip = th.draw("window", part, 1, (SIDE_SRC, h - TITLE_H))
-        img.alpha_composite(strip.crop((1, 0, SIDE_SRC, h - TITLE_H)), (x + 1 if x < 0 else x, TITLE_H))
+        strip = th.draw("window", part, 1, (SIDE_SRC, body))
+        img.alpha_composite(strip.crop((1, 0, SIDE_SRC, body)), (x + 1 if x < 0 else x, TITLE_H))
+    img.alpha_composite(th.draw("window", "framebottom", 1, (W, SIDE)), (0, h - SIDE))
     cap = th.draw("window", "caption", 1, (W, TITLE_H))
     img.alpha_composite(cap)
     for fn in ("minimize", "maximize", "close"):
         img.alpha_composite(th.draw("window", PARTS[fn], 1, (BTN, BTN)), (BTN_X[fn], BTN_Y))
-    bx, by = (W - BUTTON_W) // 2, TITLE_H + (h - TITLE_H - BUTTON_H) // 2
+    bx, by = (W - BUTTON_W) // 2, TITLE_H + (body - BUTTON_H) // 2
     img.alpha_composite(th.draw("button", "pushbutton", 5, (BUTTON_W, BUTTON_H)), (bx, by))
     draw = ImageDraw.Draw(img)
     text = th.color("button", "pushbutton", None, "TextColor") + (255,)
